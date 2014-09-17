@@ -1,0 +1,496 @@
+<html>
+<head>
+  <title>Combinator</title>
+</head>
+<body onload="test();">
+
+  <script type="text/javascript" src="index.js"></script>
+
+  <script type="text/javascript">
+
+    function equals(msg, val1, val2){
+      if(val1===val2){
+          console.log("      [OK]              ", msg);
+      }
+      else{
+        console.error("    [NOT OK]          ", msg);
+      }
+    }
+
+    function ok(msg, val){
+      if(val){
+          console.log("      [OK]              ", msg);
+      }
+      else{
+        console.error("    [NOT OK]          ", msg);
+      }
+    }
+
+    var tests = [];
+    function next(){
+      setTimeout(function(){
+        var fn = tests.shift();
+        if(fn) fn(next);
+      }, 0);
+    }
+
+    function describe(msg, fn){
+      tests.push(function(next){
+        console.log("                  ");        
+        console.log("[DESCRIBE]              ", msg);
+        fn(next);
+      });
+
+      if(tests.length===1) next();
+
+
+
+    }
+  </script>
+
+
+
+
+  <script type="text/javascript">
+    function test(){
+
+      describe("Test starts", function(next){
+        ok("ok success", true);
+        ok("ok fail", false);  
+        equals("equals success", 2, 1+1);
+        equals("equals fails", 2, "2");
+        next();
+      });
+
+      describe("Combinator creates instance", function(next){
+        var combinator = new Combinator({});
+        ok("combinator exists",    !!combinator);
+        
+        ok("combinator has store", !!combinator.store);
+        equals("store is object", typeof combinator.store, "object");
+        equals("store is empty", Object.keys(combinator.store).length, 0);
+        
+        ok("combinator has _types", !!combinator._types);
+        equals("_types is object", typeof combinator._types, "object");
+        equals("_types is empty", Object.keys(combinator._types).length, 0);
+        next();
+      });
+
+      describe("Combinator creates instance with types", function(next){
+        var combinator = new Combinator({
+          li:  { methods: [], add: function(li, span){} },
+          span:{ methods: [], add: function(span, li){} }
+        });
+        equals("store is empty", Object.keys(combinator.store).length,   0);
+        equals("_types is not empty", Object.keys(combinator._types).length, 2);
+        next();
+      });
+
+      describe("Combinator creates instance with sheaf objects", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){
+              if(li.className === span.className) return li.className;
+              else return false;
+            }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){
+              if(li.className === span.className) return li.className;
+              else return false;
+            }
+          }
+        });
+
+        var lis   = document.getElementsByTagName("li");
+        var spans = document.getElementsByTagName("span");
+        for(var i=0;i<lis.length;i++){
+          window.the_li = lis[i];
+          combinator.addObject("li",   lis[i],   spans[i] );
+          combinator.addObject("span", spans[i], lis[i]   );
+        }
+
+        equals("store is not empty", Object.keys(combinator.store).length,   6);
+        var sheaf = combinator.get("test-1");
+        ok("combinator getter returns existing sheaf", !!sheaf);
+        ok("combinator getter does not return not existing sheaf", !combinator.get("not_existing"));
+        equals("sheaf has 1 li",   sheaf.li.objects.length,   3);
+        equals("sheaf has 1 span", sheaf.span.objects.length, 3);
+        next();
+      });
+
+      describe("Combinator combines more elements under 1 id", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(el){
+              return el.parentElement.className;
+            }
+          },
+          span:{
+            methods: [],
+            add: function(el){
+              window.the_div = el.parentElement;
+              return el.parentElement.className;
+            }
+          }
+        });
+
+        var uls   = document.getElementsByTagName("ul");
+        var divs  = document.getElementsByTagName("div");
+
+        for(var i=0;i<uls.length;i++){
+          var ul  = uls[i];
+          var div = divs[i];
+          for(var j=0;j<ul.childNodes.length;j++){
+            var li = ul.childNodes[j];
+            if(li.nodeName==="LI") combinator.addObject("li",   li);
+            var span = div.childNodes[j];
+            if(span.nodeName==="SPAN") combinator.addObject("span", span);
+          }
+        }
+        
+        equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+        var sheaf = combinator.get("test-class-1");
+        equals("sheaf has 6 li",   sheaf.li.objects.length,   6);
+        equals("sheaf has 6 span", sheaf.span.objects.length, 6);
+        next();
+      });
+
+      describe("Combinator - adding one type as array", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(el){
+              return el.parentElement.className;
+            }
+          },
+          span:{
+            methods: [],
+            add: function(el){
+              return el.parentElement.className;
+            }
+          }
+        });
+
+        var lis    = document.getElementsByTagName("li");
+        var spans  = document.getElementsByTagName("span");
+
+        combinator.addObjects("li",     lis);
+        combinator.addObjects("span", spans);
+        
+        
+        equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+        var sheaf = combinator.get("test-class-1");
+        equals("sheaf has 6 li",   sheaf.li.objects.length,   6);
+        equals("sheaf has 6 span", sheaf.span.objects.length, 6);
+        next();
+      });
+
+      describe("Combinator - adding arrays with arguments array", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){
+              ok("'li' arguments are ok", li.nodeName==="LI" && span.nodeName==="SPAN");
+              return li.parentElement.className;
+            }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){
+              ok("'span' arguments are ok", li.nodeName==="LI" && span.nodeName==="SPAN");
+              return span.parentElement.className;
+            }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li"));
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+
+        combinator.addObjects("li",     lis_pairs); // [[li,span],[li,span],[li,span],...]
+        combinator.addObjects("span", spans_pairs); // [[span,li],[span,li],[span,li],...]
+        
+        
+        equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+        var sheaf = combinator.get("test-class-1");
+        equals("sheaf has 6 li",   sheaf.li.objects.length,   6);
+        equals("sheaf has 6 span", sheaf.span.objects.length, 6);
+        next();
+      });
+
+      describe("Combinator - adding object", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){ return li.parentElement.className; }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){ return span.parentElement.className; }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li"));
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+
+
+        combinator.addObject({
+          "li" :     lis_pairs,  // [[li,span],[li,span],[li,span],...]
+          "span" : spans_pairs,  // [[span,li],[span,li],[span,li],...]
+        });
+
+        equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+        var sheaf = combinator.get("test-class-1");
+        equals("sheaf has 6 li",   sheaf.li.objects.length,   6);
+        equals("sheaf has 6 span", sheaf.span.objects.length, 6);
+        next();
+      });
+
+      describe("Combinator - remove index", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){ return li.parentElement.className; }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){ return span.parentElement.className; }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li")  );
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+
+        combinator.addObject({
+          "li" :     lis_pairs,
+          "span" : spans_pairs,
+        });
+
+        equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+        combinator.remove("test-class-1");
+        equals("store has 2 sheafs", Object.keys(combinator.store).length,   2);
+        ok("store does not have removed index", typeof combinator.store["test-class-1"] === "undefined");
+        ok("get method does not return removed index", typeof combinator.get("test-class-1") === "undefined");
+        next();
+      });
+
+      describe("Combinator - on add event", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){ return li.parentElement.className; }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){ return span.parentElement.className; }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li")  );
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+        var counter = 0;
+        combinator.on("add", function(sheaf, id){
+          if(sheaf instanceof Sheaf) counter++;
+        });
+
+        combinator.addObject({
+          "li" :     lis_pairs,
+          "span" : spans_pairs,
+        });
+
+        combinator.on("end", function(){
+          equals("store has 3 sheafs", Object.keys(combinator.store).length,   3);
+          ok("on add is called 3 times with sheaf instances", counter===3);
+          next();
+        })
+        combinator.trigger("end");
+      });
+
+      describe("Combinator - on remove event", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){ return li.parentElement.className; }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){ return span.parentElement.className; }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li")  );
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+
+        combinator.on("remove", function(sheaf, id){
+          ok("On remove event passes Sheaf object", sheaf instanceof Sheaf);
+          next();
+        });
+
+
+        combinator.addObject({
+          "li" :     lis_pairs,
+          "span" : spans_pairs,
+        });
+
+       combinator.remove("test-class-1");
+      });
+
+
+
+      describe("Sheaf - add", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: [],
+            add: function(li, span){ return li.parentElement.className; }
+          },
+          span:{
+            methods: [],
+            add: function(span, li){ return span.parentElement.className; }
+          }
+        });
+
+        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li")  );
+        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
+
+        var lis_pairs   = [];
+        var spans_pairs = [];
+        lis.forEach(function(li,index){
+          lis_pairs.push([li, spans[index]]);
+        });
+        spans.forEach(function(span,index){
+          spans_pairs.push([span, lis[index]]);
+        });
+
+        combinator.on("remove", function(sheaf, id){
+          ok("On remove event passes Sheaf object", sheaf instanceof Sheaf);
+          next();
+        });
+
+
+        combinator.addObject({
+          "li" :     lis_pairs,
+          "span" : spans_pairs,
+        });
+
+       combinator.remove("test-class-1");
+
+      });
+
+
+
+
+
+    }
+
+  </script>
+
+
+  <ul class="test-class-1">
+    <li class="test-1"></li>
+    <li class="test-2"></li>
+    <li class="test-3"></li>
+    <li class="test-4"></li>
+    <li class="test-5"></li>
+    <li class="test-6"></li>
+  </ul>
+
+  <div class="test-class-1">
+    <span class="test-1"></span>
+    <span class="test-2"></span>
+    <span class="test-3"></span>
+    <span class="test-4"></span>
+    <span class="test-5"></span>
+    <span class="test-6"></span>
+  </div>
+
+
+
+  <ul class="test-class-2">
+    <li class="test-1"></li>
+    <li class="test-2"></li>
+    <li class="test-3"></li>
+    <li class="test-4"></li>
+    <li class="test-5"></li>
+    <li class="test-6"></li>
+  </ul>
+
+  <div class="test-class-2">
+    <span class="test-1"></span>
+    <span class="test-2"></span>
+    <span class="test-3"></span>
+    <span class="test-4"></span>
+    <span class="test-5"></span>
+    <span class="test-6"></span>
+  </div>
+
+  <ul class="test-class-3">
+    <li class="test-1"></li>
+    <li class="test-2"></li>
+    <li class="test-3"></li>
+    <li class="test-4"></li>
+    <li class="test-5"></li>
+    <li class="test-6"></li>
+  </ul>
+
+  <div class="test-class-3">
+    <span class="test-1"></span>
+    <span class="test-2"></span>
+    <span class="test-3"></span>
+    <span class="test-4"></span>
+    <span class="test-5"></span>
+    <span class="test-6"></span>
+  </div>
+
+
+
+
+</body>
+</html>
