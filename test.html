@@ -383,56 +383,139 @@
        combinator.remove("test-class-1");
       });
 
-
-
-      describe("Sheaf - add", function(next){
+      describe("Sheaf - set and unset objects properties", function(next){
         var combinator = new Combinator({
           li:{
-            methods: [],
-            add: function(li, span){ return li.parentElement.className; }
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(li){ return li.className; }
           },
           span:{
-            methods: [],
-            add: function(span, li){ return span.parentElement.className; }
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(span){ return span.className; }
           }
         });
 
-        var lis    = Array.prototype.slice.call(document.getElementsByTagName("li")  );
-        var spans  = Array.prototype.slice.call(document.getElementsByTagName("span"));
-
-        var lis_pairs   = [];
-        var spans_pairs = [];
-        lis.forEach(function(li,index){
-          lis_pairs.push([li, spans[index]]);
-        });
-        spans.forEach(function(span,index){
-          spans_pairs.push([span, lis[index]]);
-        });
-
-        combinator.on("remove", function(sheaf, id){
-          ok("On remove event passes Sheaf object", sheaf instanceof Sheaf);
-          next();
-        });
-
-
         combinator.addObject({
-          "li" :     lis_pairs,
-          "span" : spans_pairs,
+          li :     combinator.createArray(document.getElementsByTagName("li")  ),
+          span :   combinator.createArray(document.getElementsByTagName("span"))
         });
+        
 
-       combinator.remove("test-class-1");
 
+        var sheaf = combinator.get("test-2");
+        
+        sheaf.li.setProperties({
+          "style.border":  "4px solid red",
+          "style.width" :  "400px",
+          "style.margin":  "20px",
+          "style.height":  "40px",
+          "style.padding": "10px"
+        })
+
+
+        sheaf.li.unsetProperties([  
+          "style.border",
+          "style.width",
+          "style.margin",
+          "style.height",
+          "style.padding"
+        ]);
+        // Note - unsetProperties does not work with DOM's style property. 
+        // Use the following code in this case
+
+        sheaf.li.setProperties({
+          "style.border":  "",
+          "style.width" :  "",
+          "style.margin":  "",
+          "style.height":  "",
+          "style.padding": ""
+        })
+
+        sheaf.span.setProperties({
+          "style.border":  "4px solid green",
+          "style.width" :  "400px",
+          "style.margin":  "20px",
+          "style.height":  "40px",
+          "style.padding": "10px"
+        })
+
+
+        sheaf.span.unsetProperties([  
+          "style.border",
+          "style.width",
+          "style.margin",
+          "style.height",
+          "style.padding"
+        ]);
+        // Note - unsetProperties does not work with DOM's style property. 
+        // Use the following code in this case
+
+        sheaf.span.setProperties({
+          "style.border":  "",
+          "style.width" :  "",
+          "style.margin":  "",
+          "style.height":  "",
+          "style.padding": ""
+        })
+
+        next();
+        
       });
 
 
+      function createEvent(name){
+        return new CustomEvent(name, {
+            detail: {
+              message: "Hello World!",
+              time: new Date(),
+            },
+            bubbles: true,
+            cancelable: true
+          }
+        );        
+      }
 
+      describe("Sheaf - call methods", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: ["dispatchEvent", "addEventListener", "removeEventListener"],
+            add: function(li){ return li.className; }
+          },
+          span:{
+            methods: ["dispatchEvent", "addEventListener", "removeEventListener"],
+            add: function(span){ return span.className; }
+          }
+        });
 
+        combinator.addObject({
+          li :     combinator.createArray(document.getElementsByTagName("li")  ),
+          span :   combinator.createArray(document.getElementsByTagName("span"))
+        });
+        
+        var sheaf = combinator.get("test-2");
+        
+        var counter = 3;
+        var listener = function(){
+          counter--;
+          if(counter<0) ok("Listener called more than expected 3 times", false);
+          else if(counter===0) {
+            ok("Listener called exactli 3 times", true);
+            sheaf.li.removeEventListener("custom_event", listener, true)
+            next();
+          }
+        };
+        sheaf.li.addEventListener("custom_event", listener, true);
+        sheaf.li.dispatchEvent(createEvent("custom_event"));
+      });
 
     }
 
   </script>
 
 
+
+
+  <!-- Test elements -->
   <ul class="test-class-1">
     <li class="test-1"></li>
     <li class="test-2"></li>

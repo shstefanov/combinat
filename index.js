@@ -75,18 +75,37 @@ Wrapper.prototype.createMethod = function(method){
   }
 }
 
-Wrapper.prototype.setProps = function(obj){
-  for(var key in obj){
-    for(var i=0;i<this.objects.length;i++){
-      var object = this.objects[i];
-      object[key] = obj[key];
-    }        
+var deleteProperty = function(string, target){ // remove - true/false
+  var parts = string.split("."), t = target, last = parts.pop();
+  for(var i=0;i<parts.length;i++) {
+    t = t[parts[i]];
+  }
+  delete t[last];
+}
+
+var updateProperty = function(string, target, val){ // remove - true/false
+  var parts = string.split("."), t = target, last = parts.pop();
+  for(var i=0;i<parts.length;i++) {
+    t = t[parts[i]];
+  }
+  t[last] = val;
+}
+
+Wrapper.prototype.setProperties = function(obj){
+  for(var i=0;i<this.objects.length;i++){
+    for(var key in obj){
+      updateProperty(key, this.objects[i], obj[key]);
+    }
   }
 }
 
-Wrapper.prototype.unsetProps = function(props_arr){
-  for(var key in obj)
-    for(var i=0;i<this.objects.length;i++) delete object[key];
+Wrapper.prototype.unsetProperties = function(obj_arr){
+  if(typeof obj_arr === "string") obj_arr = [obj_arr];
+  for(var i=0;i<this.objects.length;i++){
+    for(var j=0;j<obj_arr.length;j++){
+      deleteProperty(obj_arr[j], this.objects[i]);
+    }
+  }
 }
 
 Wrapper.prototype.addObject = function(obj){ this.objects.push(obj); }
@@ -188,6 +207,10 @@ Combinator.prototype.addObject = function(type){ // just object with types
     }
   }
   return this;
+}
+
+Combinator.prototype.createArray = function(list){
+  return Array.prototype.slice.call(list);
 }
 
 Combinator.prototype.remove = function(id){
