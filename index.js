@@ -75,12 +75,31 @@ Wrapper.prototype.createMethod = function(method){
   }
 }
 
+
 var deleteProperty = function(string, target){ // remove - true/false
   var parts = string.split("."), t = target, last = parts.pop();
   for(var i=0;i<parts.length;i++) {
     t = t[parts[i]];
   }
   delete t[last];
+}
+
+var deletePropertySafe = function(string, target){ // remove - true/false
+  var parts = string.split("."), t = target, last = parts.pop();
+  for(var i=0;i<parts.length;i++) {
+    if(!t[parts[i]]) return;
+    t = t[parts[i]];
+  }
+  delete t[last];
+}
+
+var updatePropertySafe = function(string, target, val){ // remove - true/false
+  var parts = string.split("."), t = target, last = parts.pop();
+  for(var i=0;i<parts.length;i++) {
+    if(!t[parts[i]]) t[parts[i]] = {};
+    t = t[parts[i]];
+  }
+  t[last] = val;
 }
 
 var updateProperty = function(string, target, val){ // remove - true/false
@@ -92,8 +111,9 @@ var updateProperty = function(string, target, val){ // remove - true/false
 }
 
 Wrapper.prototype.setProperties = function(obj){
-  for(var i=0;i<this.objects.length;i++){
-    for(var key in obj){
+  for(var key in obj){
+    updatePropertySafe(key, this.attributes, obj[key]);
+    for(var i=0;i<this.objects.length;i++){
       updateProperty(key, this.objects[i], obj[key]);
     }
   }
@@ -101,8 +121,9 @@ Wrapper.prototype.setProperties = function(obj){
 
 Wrapper.prototype.unsetProperties = function(obj_arr){
   if(typeof obj_arr === "string") obj_arr = [obj_arr];
-  for(var i=0;i<this.objects.length;i++){
-    for(var j=0;j<obj_arr.length;j++){
+  for(var j=0;j<obj_arr.length;j++){
+    deletePropertySafe(obj_arr[j], this.attributes);
+    for(var i=0;i<this.objects.length;i++){
       deleteProperty(obj_arr[j], this.objects[i]);
     }
   }

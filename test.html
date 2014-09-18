@@ -500,7 +500,7 @@
           if(counter<0) ok("Listener called more than expected 3 times", false);
           else if(counter===0) {
             ok("Listener called exactli 3 times", true);
-            sheaf.li.removeEventListener("custom_event", listener, true)
+            sheaf.li.removeEventListener("custom_event", listener, true);
             next();
           }
         };
