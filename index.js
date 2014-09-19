@@ -1,4 +1,20 @@
 
+function amap(arr, iterator, cb){
+  if(arr.length===0) return cb(null, arr);
+  var results = new Array(arr.length), counter = arr.length, error;
+  arr.forEach(function(el, idx, arr){
+    setTimeout(function(){
+      iterator(el, function(err, result){
+        if(error === true) return;
+        if(err){error = true; return cb(err);}
+        results[idx] = result;
+        counter--;
+        if(counter===0) cb(null, results);
+      });
+    }, 0);
+  });
+}
+
 var Events = {
   on: function(event, handler){
     if(this.events[event]) this.events[event].push(handler);
@@ -50,9 +66,14 @@ var Events = {
 
 
 
-
-
-
+var hasCallback = function(args){
+  for(var i=0;i<args.length;i++){
+    if(typeof args[i]==="function" && typeof args[i].combinat_callback === "function"){
+      return true;
+    }
+  }
+  return false;
+}
 
 
 function Wrapper(type){
@@ -68,15 +89,31 @@ Wrapper.prototype.createMethods = function(methods){
 
 Wrapper.prototype.createMethod = function(method){
   this[method] = function(){
+    var args;
+    if(hasCallback(arguments)) args = replaceCallback(arguments);
     for(var i=0;i<this.objects.length;i++){
       var object = this.objects[i];
-      object[method].apply(object, arguments);
+      object[method].apply(object, args || arguments);
     }
   }
 }
 
+Wrapper.prototype.amap = function(iterator, cb){
+  amap(this.objects, iterator, cb);
+}
 
-var deleteProperty = function(string, target){ // remove - true/false
+Wrapper.prototype.amapMethod = function(){
+  var args = Array.prototype.slice.call(arguments);
+  // console.log("amapMethod", arguments);
+  var cb = args.pop();
+  var method = args.shift();
+  amap(this.objects, function(obj, cb){
+    obj[method].apply(obj, args.concat([cb]));
+  }, cb);
+}
+
+
+var deleteProperty = function(string, target){
   var parts = string.split("."), t = target, last = parts.pop();
   for(var i=0;i<parts.length;i++) {
     t = t[parts[i]];
@@ -259,12 +296,19 @@ Combinator.prototype.get = function(id){
   return this.store[id];
 };
 
-Combinator.prototype.onEmpty = function(){};
-Combinator.prototype.onNew   = function(){};
 
-Combinator.prototype.invoke = function(type, method, args){
+Combinator.prototype.createCallback = function(fn){
+  fn.combinat_callback = function(){
+    this.counter--;
+    if(this.counter===0){
+      delete this.counter;
+      fn.apply(this, arguments);
+    }
 
+  }
 }
+
+.combinat_callback === true
 
 Combinator.prototype.invokeAsync = function(type, method, args, cb){
 

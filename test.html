@@ -508,6 +508,98 @@
         sheaf.li.dispatchEvent(createEvent("custom_event"));
       });
 
+      var TestObj = function(){
+        this.asyncMethod = function(arg, cb){
+          setTimeout(function(){
+            cb(null, arg);
+          }, 200);
+        }
+      }
+
+      describe("Wrapper - amap", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(li){ return li.className; }
+          },
+          span:{
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(span){ return span.className; }
+          },
+          testObject: {
+            methods: ["asyncMethod"],
+            add: function(obj, li){
+              return li.className;
+            }
+            
+          }
+        });
+
+        var lis = combinator.createArray(document.getElementsByTagName("li")  );
+        var testObjects = lis.map(function(li){
+          return [new TestObj(), li];
+        })
+
+        combinator.addObject({
+          li :     lis,
+          span :   combinator.createArray(document.getElementsByTagName("span")),
+          testObject: testObjects
+        });
+        
+        var sheaf = combinator.get("test-2");
+
+        sheaf.testObject.amap(function(testObject, cb){
+          testObject.asyncMethod("some_data", cb);
+        }, function(err, results){
+          ok("Expect err to be undefined", err===null);
+          ok("Expect results length to be 3", results.length===3);
+          next();
+        });
+        
+      });
+
+      describe("Wrapper - amapMethod", function(next){
+        var combinator = new Combinator({
+          li:{
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(li){ return li.className; }
+          },
+          span:{
+            methods: ["dispatchEvent", "addEventListener"],
+            add: function(span){ return span.className; }
+          },
+          testObject: {
+            methods: ["asyncMethod"],
+            add: function(obj, li){
+              return li.className;
+            }
+            
+          }
+        });
+
+        var lis = combinator.createArray(document.getElementsByTagName("li")  );
+        var testObjects = lis.map(function(li){
+          return [new TestObj(), li];
+        })
+
+
+        combinator.addObject({
+          li :     lis,
+          span :   combinator.createArray(document.getElementsByTagName("span")),
+          testObject: testObjects
+        });
+        
+        var sheaf = combinator.get("test-2");
+
+        sheaf.testObject.amapMethod("asyncMethod", {a:5}, function(err, results){
+          ok("Expect err to be undefined", err===null);
+          ok("Results length is 3", results.length===3);
+          ok("Expect results to contain a:5", results[0].a===5 && results[1].a===5 && results[2].a===5);
+          next();
+        });
+        
+      });
+
     }
 
   </script>
