@@ -104,7 +104,6 @@ Wrapper.prototype.amap = function(iterator, cb){
 
 Wrapper.prototype.amapMethod = function(){
   var args = Array.prototype.slice.call(arguments);
-  // console.log("amapMethod", arguments);
   var cb = args.pop();
   var method = args.shift();
   amap(this.objects, function(obj, cb){
@@ -204,14 +203,12 @@ function Combinator(types, options){
   this._types = types;
   this.store = {}; // Stored by id
   this.events = {};
+  if(options && options.ready) this.checkReady = options.ready;
 }
 
 var orig_has = Object.prototype.hasOwnProperty;
 function has(obj, prop){return orig_has.call(obj, prop);};
 Combinator.prototype.addObjects = function(type, objects){
-  for(var i=0;i<objects.length;i++) this.addObject(type, objects[i]);
-}
-Combinator.prototype.addObject = function(type){ // just object with types
   if(Array.isArray(type)) {
     for(var i=0;i<types.length;i++) this.addObject(type[i]);
     return this;
@@ -223,50 +220,59 @@ Combinator.prototype.addObject = function(type){ // just object with types
     }
     return this;
   }
-  else{
-    var args = Array.prototype.slice.call(arguments, 1);
-    if(Array.isArray(args[0])){
-      for(var i=0;i<args.length;i++) this.addObject.apply(this, [type].concat(args[i]));
-      return;
+  else if(Array.isArray(objects)){
+    if(Array.isArray(objects[0]))
+      for(var i=0;i<objects.length;i++) this.addObject.apply(this, [type].concat(objects[i]));
+    else
+      for(var i=0;i<objects.length;i++) this.addObject(type, objects[i]);
+  }
+}
+
+Combinator.prototype.addObject = function(type){ // just object with types
+  
+  var args = Array.prototype.slice.call(arguments, 1);
+  var main_obj = args[0];
+  if(!this._types[type]) throw new Error("Unknown type: "+type);
+  var index = this._types[type].add.apply(this, args);
+  var init  = this._types[type].initialize;
+  var ready = this.checkReady;
+  if(typeof index==="number" || typeof index === "string"){
+    var sheaf = this.store[index];
+    if(!sheaf) {
+      sheaf = this.store[index] = new Sheaf(this._types, {combinator: this});
+      this.trigger("add", sheaf, index);
     }
-    var main_obj = args[0];
-    if(!this._types[type]) throw new Error("Unknown type: "+type);
-    var index = this._types[type].add.apply(this, args);
-    if(typeof index==="number" || typeof index === "string"){
-      var sheaf = this.store[index];
-      if(!sheaf) {
-        sheaf = this.store[index] = new Sheaf(this._types, {combinator: this});
-        this.trigger("add", sheaf, index);
+    sheaf[type].addObject(main_obj);
+    init && init.call(main_obj, main_obj, sheaf);
+    if(ready && !sheaf.ready){
+      if(ready(sheaf)){
+        this.trigger("ready", sheaf)
+        sheaf.ready = true;
       }
-      sheaf[type].addObject(main_obj);
     }
-    else if(Array.isArray(index)){
-      for(var i=0;i<index.length;i++){
-        var ind = index[i];
-        var sheaf = this.store[ind];
-        if(sheaf) sheaf[type].addObject(main_obj);
-        else {
-          sheaf = this.store[ind] = new Sheaf(this._types, {combinator: this});
-          this.trigger("add", sheaf, ind);
-          sheaf[type].addObject(main_obj);
-        }
+  }
+  else if(Array.isArray(index)){
+    for(var i=0;i<index.length;i++){
+      var ind = index[i];
+      var sheaf = this.store[ind];
+      if(sheaf) sheaf[type].addObject(main_obj);
+      else {
+        sheaf = this.store[ind] = new Sheaf(this._types, {combinator: this});
+        this.trigger("add", sheaf, ind);
+        sheaf[type].addObject(main_obj);
       }
-    }
-    else{
-      if(index){
-        var sheaf = this.store[index];
-        if(sheaf) sheaf[type].addObject(main_obj);
-        else {
-          sheaf = this.store[index] = new Sheaf(this._types, {combinator: this});
-          this.trigger("add", sheaf, index);
-          sheaf[type].addObject(main_obj);
+      init && init.call(main_obj, main_obj, sheaf);
+      if(ready && !sheaf.ready){
+        if(ready(sheaf)){
+          this.trigger("ready", sheaf)
+          sheaf.ready = true;
         }
       }
     }
   }
-  return this;
 }
 
+// !! Should be static method !!
 Combinator.prototype.createArray = function(list){
   return Array.prototype.slice.call(list);
 }
